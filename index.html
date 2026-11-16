@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>BLVCK Trading Journal</title>
+<meta name="description" content="Record each trading day and see where you stand against your quarterly targets.">
+<meta name="theme-color" content="#0d1014">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="BLVCK">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* Layout idea: one phone-width column, summary on top, a fixed four-tab bar at the bottom.
+   Single dark theme by choice: blued steel with a straw heat-tint accent. */
+:root{
+  color-scheme: dark;
+  --bg:#0d1014;
+  --surface:#161a20;
+  --raised:#1e242c;
+  --line:#2a323c;
+  --text:#e9edf1;
+  --muted:#8e9aa7;
+  --accent:#e0a84a;
+  --accent-ink:#1b1406;
+  --steel:#6fa3c7;
+  --gain:#4cc38a;
+  --loss:#f0715f;
+  --display:"Barlow Condensed","Arial Narrow",Arial,sans-serif;
+  --body:"Barlow","Segoe UI",system-ui,sans-serif;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0;overscroll-behavior:none}
+body{background:#07090b;color:var(--text);font-family:var(--body);font-size:15px;line-height:1.4;-webkit-font-smoothing:antialiased;-webkit-tap-highlight-color:transparent}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer;border:0;background:none;padding:0}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.num{font-variant-numeric:tabular-nums}
+
+.app{position:relative;height:100vh;height:100dvh;max-width:440px;margin:0 auto;background:var(--bg);display:flex;flex-direction:column;overflow:hidden}
+@media(min-width:480px){.app{border-left:1px solid var(--line);border-right:1px solid var(--line)}}
+.top{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:calc(14px + env(safe-area-inset-top)) 18px 10px}
+.brand{display:flex;align-items:baseline;gap:8px}
+.brand b{font-family:var(--display);font-weight:700;font-size:26px;letter-spacing:.14em}
+.brand span{color:var(--muted);font-size:12px;letter-spacing:.08em;text-transform:uppercase}
+.sync{display:flex;align-items:center;gap:6px;color:var(--muted);font-size:12px}
+.sync i{width:7px;height:7px;border-radius:50%;background:var(--gain)}
+.sync.off i{background:var(--loss)}
+main{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:4px 18px 24px;display:flex;flex-direction:column;gap:14px}
+
+.tabs{display:grid;grid-template-columns:repeat(4,1fr);border-top:1px solid var(--line);background:var(--surface);padding-bottom:env(safe-area-inset-bottom)}
+.tabs button{display:flex;flex-direction:column;align-items:center;gap:3px;padding:9px 0 10px;color:var(--muted);font-size:11px;letter-spacing:.06em;text-transform:uppercase}
+.tabs button svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.tabs button[aria-current="page"]{color:var(--accent)}
+
+.eyebrow{color:var(--muted);font-size:12px;letter-spacing:.1em;text-transform:uppercase}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:12px}
+.card h2{margin:0;font-family:var(--display);font-weight:600;font-size:19px;letter-spacing:.04em;text-transform:uppercase;text-wrap:balance}
+.hero{padding:6px 0 2px;display:flex;flex-direction:column;gap:6px}
+.hero .big{font-family:var(--display);font-weight:700;font-size:56px;line-height:1;letter-spacing:.01em}
+.hero .row{display:flex;flex-wrap:wrap;align-items:center;gap:8px 10px}
+.sub{color:var(--muted);font-size:13px}
+.pill{display:inline-flex;align-items:center;gap:6px;border-radius:99px;padding:3px 10px;font-size:12px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;border:1px solid var(--line);color:var(--muted);white-space:nowrap}
+.pill::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}
+.pill.hit{color:var(--gain);border-color:color-mix(in srgb,var(--gain) 45%,transparent)}
+.pill.rec{color:var(--loss);border-color:color-mix(in srgb,var(--loss) 45%,transparent)}
+.gain{color:var(--gain)}.loss{color:var(--loss)}
+
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:12px 14px}
+.stat{display:flex;flex-direction:column;gap:2px;min-width:0}
+.stat .k{color:var(--muted);font-size:12px}
+.stat .v{font-family:var(--display);font-weight:600;font-size:24px;line-height:1.1;overflow-wrap:anywhere}
+.stat .n{color:var(--muted);font-size:12px}
+.btn{display:flex;align-items:center;justify-content:center;width:100%;min-height:48px;border-radius:12px;background:var(--accent);color:var(--accent-ink);font-family:var(--display);font-weight:700;font-size:19px;letter-spacing:.08em;text-transform:uppercase;text-align:center}
+.btn.ghost{background:transparent;color:var(--text);border:1px solid var(--line)}
+.btn.danger{background:transparent;color:var(--loss);border:1px solid color-mix(in srgb,var(--loss) 45%,transparent)}
+.btn.sm{min-height:40px;font-size:16px}
+.btnrow{display:flex;gap:10px}
+.note{background:var(--raised);border-radius:10px;padding:10px 12px;font-size:13px;color:var(--muted)}
+.banner{border:1px dashed var(--accent);border-radius:14px;padding:12px 14px;display:flex;flex-direction:column;gap:10px;font-size:13px}
+.banner.install{border-style:solid;border-color:var(--line);background:var(--surface)}
+.steps{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:4px;color:var(--muted)}
+.steps b{color:var(--text);font-weight:600}
+
+.pace{position:relative;height:10px;border-radius:99px;background:var(--raised);margin:14px 0 4px}
+.pace .fill{position:absolute;left:0;top:0;bottom:0;border-radius:99px;background:var(--accent)}
+.pace .mark{position:absolute;top:-5px;bottom:-5px;width:2px;background:var(--steel)}
+.legend{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:12px;color:var(--muted)}
+.legend i{display:inline-block;width:10px;height:3px;border-radius:2px;margin-right:5px;vertical-align:middle}
+
+.chips{display:flex;gap:8px;flex-wrap:wrap}
+.chip{padding:7px 14px;border-radius:99px;border:1px solid var(--line);color:var(--muted);font-size:13px;font-weight:600}
+.chip[aria-pressed="true"]{background:var(--text);color:var(--bg);border-color:var(--text)}
+
+.days{display:flex;flex-direction:column}
+.day{display:grid;grid-template-columns:46px 1fr auto;gap:10px;align-items:center;width:100%;text-align:left;padding:11px 2px;border-top:1px solid var(--line)}
+.day:first-child{border-top:0}
+.day .d{font-family:var(--display);font-weight:600;font-size:22px;color:var(--muted);line-height:1}
+.day .d small{display:block;font-family:var(--body);font-weight:400;font-size:11px;letter-spacing:.04em;margin-top:3px}
+.day .m{min-width:0}
+.day .m b{font-weight:600;font-size:16px}
+.day .m>span{display:block;font-size:12px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.day .r{text-align:right;display:flex;flex-direction:column;align-items:flex-end;gap:3px;font-size:12px}
+.day.next{background:linear-gradient(90deg,color-mix(in srgb,var(--accent) 12%,transparent),transparent)}
+.day.next .d{color:var(--accent)}
+.day.future{opacity:.55}
+
+.rows{display:flex;flex-direction:column}
+.rows>div{display:flex;justify-content:space-between;gap:12px;padding:8px 0;border-top:1px solid var(--line);font-size:14px}
+.rows>div:first-child{border-top:0}
+.rows>div span:first-child{color:var(--muted)}
+.rows .total{font-weight:600}
+.rows em{font-style:normal;color:var(--muted);font-size:11px;margin-left:6px;letter-spacing:.06em;text-transform:uppercase}
+
+.chart{width:100%;height:auto;display:block}
+.chart text{fill:var(--muted);font-size:9.5px;font-family:var(--body)}
+.scroll-x{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{text-align:right;padding:8px 6px;border-top:1px solid var(--line);white-space:nowrap}
+th{color:var(--muted);font-weight:500;font-size:11px;letter-spacing:.06em;text-transform:uppercase;border-top:0}
+th:first-child,td:first-child{text-align:left;padding-left:0}
+
+.field{display:flex;flex-direction:column;gap:5px;min-width:0}
+.field label{color:var(--muted);font-size:12px}
+.field input,.field textarea{width:100%;background:var(--raised);border:1px solid var(--line);border-radius:10px;padding:11px 12px;font-size:16px}
+.field textarea{resize:vertical;min-height:64px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+.qset{display:flex;flex-direction:column;gap:8px;padding-top:12px;border-top:1px solid var(--line)}
+.qset:first-of-type{border-top:0;padding-top:0}
+
+.scrim{position:absolute;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:flex-end;z-index:5}
+.sheet{width:100%;max-height:92%;overflow-y:auto;background:var(--surface);border-top:1px solid var(--line);border-radius:18px 18px 0 0;padding:18px 18px calc(18px + env(safe-area-inset-bottom));display:flex;flex-direction:column;gap:14px}
+.sheet h2{margin:0;font-family:var(--display);font-weight:600;font-size:24px;letter-spacing:.04em;text-transform:uppercase}
+.sheet .bal input{font-family:var(--display);font-weight:700;font-size:34px;padding:8px 12px}
+.toast{position:absolute;left:50%;bottom:calc(78px + env(safe-area-inset-bottom));transform:translateX(-50%);background:var(--text);color:var(--bg);padding:8px 14px;border-radius:99px;font-size:13px;font-weight:600;z-index:6;max-width:86%;text-align:center}
+[hidden]{display:none!important}
+@media(prefers-reduced-motion:no-preference){.sheet{animation:up .18s ease-out}@keyframes up{from{transform:translateY(24px)}to{transform:none}}}
+</style>
+</head>
+<body>
+<div class="app" id="app">
+  <header class="top">
+    <div class="brand"><b>BLVCK</b><span>Trading Journal</span></div>
+    <div class="sync" id="sync"><i></i><span id="syncText">Saved on this phone</span></div>
+  </header>
+  <main id="main"></main>
+  <nav class="tabs" id="tabs" aria-label="Sections">
+    <button type="button" data-tab="today"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="3.5"/></svg>Today</button>
+    <button type="button" data-tab="journal"><svg viewBox="0 0 24 24"><path d="M5 6h14M5 12h14M5 18h9"/></svg>Journal</button>
+    <button type="button" data-tab="quarter"><svg viewBox="0 0 24 24"><path d="M4 19h16M5 15l4-4 3 3 6-8"/></svg>Quarter</button>
+    <button type="button" data-tab="plan"><svg viewBox="0 0 24 24"><path d="M5 7h9M18 7h1M5 17h1M10 17h9"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/></svg>Plan</button>
+  </nav>
+  <div class="scrim" id="scrim" hidden></div>
+  <div class="toast" id="toast" hidden role="status"></div>
+  <input type="file" id="restoreFile" accept=".json,application/json" hidden>
+</div>
+
+<script>
+"use strict";
+/* ---------- state ---------- */
+const KEY = "blvck-journal-v1", HIDE_INSTALL = "blvck-hide-install";
+const DEFAULTS = () => ({
+  startCapital: 300, days: 20, feePct: 15, profitPct: 30, currency: "$",
+  quarters: [
+    { target: 8,  risk: 2, rr: "1 : 5" },
+    { target: 10, risk: 2, rr: "1 : 5" },
+    { target: 10, risk: 2, rr: "1 : 7" },
+    { target: 14, risk: 2, rr: "1 : 7" }
+  ]
+});
+// The seven days already recorded in the spreadsheet, shown as an example until kept or cleared.
+const EXAMPLE = () => ({
+  "0-0": { bal: 340, date: "2026-11-04" }, "0-1": { bal: 294, date: "2026-11-05" },
+  "0-2": { bal: 360, date: "2026-11-06" }, "0-3": { bal: 383, date: "2026-11-08" },
+  "0-4": { bal: 450, date: "2026-11-09" }, "0-5": { bal: 419, date: "2026-11-10" },
+  "0-6": { bal: 488, date: "2026-11-11" }
+});
+let state = { v: 1, settings: DEFAULTS(), entries: EXAMPLE(), example: true, updatedAt: 0 };
+const ui = { tab: "today", jq: null, jm: null, qq: null };
+let storageOk = true, pendingRestore = null;
+
+function loadLocal() {
+  try {
+    const raw = localStorage.getItem(KEY);
+    if (!raw) return;
+    const s = JSON.parse(raw);
+    if (s && s.settings && s.entries) state = normalise(s);
+  } catch (e) { storageOk = false; }
+}
+function normalise(s) {
+  const d = DEFAULTS(), st = Object.assign(d, s.settings || {});
+  if (!Array.isArray(st.quarters) || st.quarters.length !== 4) st.quarters = DEFAULTS().quarters;
+  return { v: 1, settings: st, entries: s.entries || {}, example: !!s.example, updatedAt: s.updatedAt || 0 };
+}
+function persist() {
+  state.updatedAt = Date.now();
+  try { localStorage.setItem(KEY, JSON.stringify(state)); storageOk = true; } catch (e) { storageOk = false; }
+  showSync();
+}
+function showSync() {
+  document.getElementById("sync").classList.toggle("off", !storageOk);
+  document.getElementById("syncText").textContent = storageOk ? "Saved on this phone" : "Not saving";
+}
+
+/* ---------- install on the phone ---------- */
+let installEvt = null;
+const isStandalone = () => (window.matchMedia && matchMedia("(display-mode: standalone)").matches) || navigator.standalone === true;
+const isIOS = () => /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+function installHidden() { try { return localStorage.getItem(HIDE_INSTALL) === "1"; } catch (e) { return false; } }
+function installBody() {
+  if (installEvt) return `<div>Put BLVCK on your home screen. It opens full screen and works without signal.</div>
+    <button type="button" class="btn sm" data-act="install">Install app</button>`;
+  if (isIOS()) return `<div>Put BLVCK on your home screen:</div>
+    <ol class="steps"><li>Open this page in <b>Safari</b>.</li><li>Tap the <b>Share</b> button.</li><li>Choose <b>Add to Home Screen</b>, then <b>Add</b>.</li></ol>`;
+  return `<div>Put BLVCK on your home screen:</div>
+    <ol class="steps"><li>Open this page in <b>Chrome</b>.</li><li>Tap the <b>menu</b> (three dots).</li><li>Choose <b>Install app</b> or <b>Add to Home screen</b>.</li></ol>`;
+}
+window.addEventListener("beforeinstallprompt", e => { e.preventDefault(); installEvt = e; render(); });
+window.addEventListener("appinstalled", () => { installEvt = null; render(); toast("Installed. Open BLVCK from your home screen."); });
+
+/* ---------- the plan engine (same rules as the spreadsheet) ---------- */
+function compute() {
+  const S = state.settings, E = state.entries, N = S.days * 3;
+  const out = []; let cap = S.startCapital, est = false;
+  for (let q = 0; q < 4; q++) {
+    const c = S.quarters[q], t = c.target / 100, r = c.risk / 100;
+    let plan = cap, last = cap, lastIdx = -1; const days = [];
+    for (let i = 0; i < N; i++) {
+      const target = plan * t; plan += target;
+      const d = { q, i, month: Math.floor(i / S.days), dim: (i % S.days) + 1, target, plan, risk: last * r, prev: last };
+      const e = E[q + "-" + i];
+      if (e && isFinite(e.bal)) {
+        d.bal = e.bal; d.date = e.date || ""; d.note = e.note || "";
+        d.pl = e.bal - last; d.gap = e.bal - plan; d.hit = e.bal >= plan;
+        last = e.bal; lastIdx = i;
+      }
+      days.push(d);
+    }
+    const months = [0, 1, 2].map(m => {
+      const end = days[(m + 1) * S.days - 1], rec = end.bal != null, base = rec ? end.bal : end.plan;
+      return { m, plan: end.plan, bal: rec ? end.bal : null, rec, fee: base * S.feePct / 100 };
+    });
+    const complete = days[N - 1].bal != null, base = complete ? days[N - 1].bal : plan;
+    const profit = base * S.profitPct / 100, carry = base - profit - months[2].fee;
+    const Q = { q, cfg: c, start: cap, startEst: est, days, months, target: plan, complete, lastIdx, balance: last, profit, carry, N };
+    if (lastIdx >= 0 && last > 0 && cap > 0) {
+      const n = lastIdx + 1;
+      Q.avg = Math.pow(last / cap, 1 / n) - 1;
+      Q.planDays = Math.log(last / cap) / Math.log(1 + t);
+      Q.forecast = cap * Math.pow(1 + Q.avg, N);
+    }
+    out.push(Q);
+    cap = carry; est = est || !complete;
+  }
+  let a = out.findIndex(Q => !Q.complete); if (a < 0) a = 3;
+  return { quarters: out, active: a, cur: Math.min(out[a].lastIdx + 1, out[a].N - 1), done: out[3].complete };
+}
+
+/* ---------- formatting ---------- */
+function money(n) {
+  if (n == null || !isFinite(n)) return "–";
+  const c = state.settings.currency || "", a = Math.abs(n), s = n < 0 ? "-" : "";
+  const units = [[1e12, "T"], [1e9, "B"], [1e6, "M"]];
+  for (const [v, u] of units) if (a >= v) return s + c + (a / v).toFixed(2) + u;
+  return s + c + a.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+const signed = n => (n >= 0 ? "+" : "-") + money(Math.abs(n));
+const pct = (n, dp = 1) => isFinite(n) ? (n * 100).toFixed(dp) + "%" : "–";
+const cls = n => n >= 0 ? "gain" : "loss";
+const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g, m => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[m]));
+function nice(date) {
+  if (!date) return "";
+  const d = new Date(date + "T00:00:00"); if (isNaN(d)) return "";
+  return d.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+}
+function today() { const d = new Date(); return new Date(d - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10); }
+const pill = d => d.bal == null ? '<span class="pill">No trades recorded</span>' : d.hit ? '<span class="pill hit">Target reached</span>' : '<span class="pill rec">Recovery mode</span>';
+const recorded = s => Object.keys(s.entries || {}).length;
+
+/* ---------- views ---------- */
+function viewToday(M) {
+  const Q = M.quarters[M.active], S = state.settings, last = Q.lastIdx >= 0 ? Q.days[Q.lastIdx] : null;
+  const next = Q.days[M.cur], isNew = next.bal == null;
+  let h = "";
+  if (!isStandalone() && !installHidden()) h += `<div class="banner install">${installBody()}
+    <button type="button" class="btn sm ghost" data-act="hideInstall">Not now</button></div>`;
+  if (state.example) h += `<div class="banner"><div><b>Example journal.</b> These seven days come from your spreadsheet, starting 4 Nov 2026. Keep them, or clear them and start your own.</div>
+    <div class="btnrow"><button type="button" class="btn sm" data-act="keep">Keep this data</button><button type="button" class="btn sm ghost" data-act="fresh">Start fresh</button></div></div>`;
+  h += `<section class="hero"><div class="eyebrow">Quarter ${Q.q + 1} · Month ${next.month + 1} · Day ${next.dim} of ${S.days}</div>
+    <div class="big num">${money(Q.balance)}</div>
+    <div class="row">${last ? pill(last) : '<span class="pill">No trades recorded</span>'}
+    <span class="sub num">${last ? `Plan for day ${last.i + 1} was ${money(last.plan)}. You are <b class="${cls(last.gap)}">${money(Math.abs(last.gap))} ${last.gap >= 0 ? "ahead" : "behind"}</b>.` : `Starting capital${Q.startEst ? " (estimated from the plan)" : ""}.`}</span></div></section>`;
+
+  if (M.done) h += `<div class="card"><h2>Year complete</h2><div class="sub">All four quarters are recorded. Open Quarter to review each one.</div></div>`;
+  else {
+    const need = next.plan - Q.balance;
+    h += `<section class="card"><h2>${isNew ? "Next up" : "Last day of quarter"}: day ${next.i + 1} plan</h2>
+      <div class="stats">
+        <div class="stat"><span class="k">Goal balance</span><span class="v num">${money(next.plan)}</span><span class="n num">${need > 0 ? signed(need) + " from here (" + pct(need / Q.balance) + ")" : "Already above this goal"}</span></div>
+        <div class="stat"><span class="k">Daily target (${Q.cfg.target}%)</span><span class="v num gain">${signed(next.target)}</span><span class="n">on the planned balance</span></div>
+        <div class="stat"><span class="k">Max risk today (${Q.cfg.risk}%)</span><span class="v num loss">${money(Q.balance * Q.cfg.risk / 100)}</span><span class="n">of your current balance</span></div>
+        <div class="stat"><span class="k">Risk : reward</span><span class="v">${esc(Q.cfg.rr)}</span><span class="n">set in Plan</span></div>
+      </div>
+      <button type="button" class="btn" data-act="log" data-q="${Q.q}" data-i="${next.i}">${isNew ? "Record day " + (next.i + 1) : "Edit day " + (next.i + 1)}</button></section>`;
+  }
+
+  if (Q.planDays != null) {
+    const n = Q.lastIdx + 1, diff = Q.planDays - n;
+    const w = v => Math.max(0, Math.min(100, v / Q.N * 100)).toFixed(2);
+    h += `<section class="card"><h2>Pace to quarterly target</h2>
+      <div class="stats">
+        <div class="stat"><span class="k">Quarterly target</span><span class="v num">${money(Q.target)}</span><span class="n num">from ${money(Q.start)}</span></div>
+        <div class="stat"><span class="k">At your current pace</span><span class="v num ${Q.forecast >= Q.target ? "gain" : "loss"}">${money(Q.forecast)}</span><span class="n num">by day ${Q.N}</span></div>
+      </div>
+      <div><div class="pace" role="img" aria-label="${n} of ${Q.N} days traded, balance equal to plan day ${Q.planDays.toFixed(1)}"><div class="fill" style="width:${w(Q.planDays)}%"></div><div class="mark" style="left:${w(n)}%"></div></div>
+      <div class="legend"><span><i style="background:var(--accent)"></i>Your balance equals plan day ${Q.planDays.toFixed(1)}</span><span><i style="background:var(--steel)"></i>Days traded: ${n} of ${Q.N}</span></div></div>
+      <div class="note num">You are averaging <b class="${Q.avg >= Q.cfg.target / 100 ? "gain" : "loss"}">${pct(Q.avg)}</b> a day against a ${Q.cfg.target}% target, which puts you <b>${Math.abs(diff).toFixed(1)} days ${diff >= 0 ? "ahead of" : "behind"}</b> the plan.</div></section>`;
+  }
+
+  const rec = Q.days.filter(d => d.bal != null).slice(-3).reverse();
+  if (rec.length) h += `<section class="card"><h2>Recent days</h2><div class="days">${rec.map(d => dayRow(d, M)).join("")}</div>
+    <button type="button" class="btn sm ghost" data-tab="journal">Open journal</button></section>`;
+  return h;
+}
+
+function dayRow(d, M) {
+  const isNext = d.q === M.active && d.i === M.cur && d.bal == null && !M.done;
+  const future = d.bal == null && !isNext;
+  const mid = d.bal != null
+    ? `<b class="num">${money(d.bal)}</b><span class="num"><span class="${cls(d.pl)}">${signed(d.pl)}</span> on the day${d.note ? " · " + esc(d.note) : ""}</span>`
+    : `<b class="num" style="color:var(--muted)">Goal ${money(d.plan)}</b><span class="num">Target ${signed(d.target)}${isNext ? " · tap to record" : ""}</span>`;
+  const right = d.bal != null ? `${pill(d)}<span class="num ${cls(d.gap)}">${signed(d.gap)} vs plan</span>` : isNext ? '<span class="pill" style="color:var(--accent);border-color:var(--accent)">Next</span>' : "";
+  return `<button type="button" class="day${isNext ? " next" : ""}${future ? " future" : ""}" data-act="log" data-q="${d.q}" data-i="${d.i}">
+    <span class="d num">${String(d.dim).padStart(2, "0")}<small>${nice(d.date) || "Day " + (d.i + 1)}</small></span><span class="m">${mid}</span><span class="r">${right}</span></button>`;
+}
+
+function chips(kind, count, sel, label) {
+  return `<div class="chips">${Array.from({ length: count }, (_, k) => `<button type="button" class="chip" data-act="${kind}" data-k="${k}" aria-pressed="${k === sel}">${label} ${k + 1}</button>`).join("")}</div>`;
+}
+
+function viewJournal(M) {
+  if (ui.jq == null) { ui.jq = M.active; ui.jm = M.quarters[M.active].days[M.cur].month; }
+  const Q = M.quarters[ui.jq], S = state.settings, mo = Q.months[ui.jm];
+  const days = Q.days.filter(d => d.month === ui.jm), end = days[days.length - 1];
+  const startCap = ui.jm === 0 ? Q.start : Q.months[ui.jm - 1].plan;
+  let h = chips("jq", 4, ui.jq, "Quarter") + chips("jm", 3, ui.jm, "Month");
+  h += `<section class="card"><h2>Quarter ${ui.jq + 1}, month ${ui.jm + 1}</h2>
+    <div class="sub num">Planned starting capital ${money(startCap)} · ${Q.cfg.target}% daily target · ${S.days} trading days</div>
+    <div class="days">${days.map(d => dayRow(d, M)).join("")}</div></section>`;
+  h += `<section class="card"><h2>Month ${ui.jm + 1} close</h2><div class="rows num">
+    <div><span>Month-end plan</span><span>${money(mo.plan)}</span></div>
+    <div><span>Month-end balance</span><span>${mo.rec ? money(mo.bal) : "Not recorded yet"}</span></div>
+    <div><span>Against plan</span><span class="${mo.rec ? cls(end.gap) : ""}">${mo.rec ? signed(end.gap) : "–"}</span></div>
+    <div><span>Handling fee on withdrawal (${S.feePct}%)</span><span>${money(mo.fee)}${mo.rec ? "" : "<em>plan</em>"}</span></div></div></section>`;
+  return h;
+}
+
+function chart(Q) {
+  const W = 340, H = 200, L = 6, R = 6, T = 16, B = 22, N = Q.N;
+  const act = [[0, Q.start]].concat(Q.days.filter(d => d.bal != null && d.bal > 0).map(d => [d.i + 1, d.bal]));
+  const vals = act.map(p => p[1]);
+  const lo = Math.log(Math.min(Q.start, ...vals) * 0.85), hi = Math.log(Math.max(Q.target, ...vals) * 1.12);
+  const x = i => L + (i / N) * (W - L - R), y = v => T + (1 - (Math.log(v) - lo) / (hi - lo)) * (H - T - B);
+  const pts = a => a.map(p => x(p[0]).toFixed(1) + "," + y(p[1]).toFixed(1)).join(" ");
+  const plan = [[0, Q.start]].concat(Q.days.map(d => [d.i + 1, d.plan]));
+  const D = state.settings.days;
+  const marks = [[0, Q.start, "Start"], [D, Q.months[0].plan, "Month 1"], [2 * D, Q.months[1].plan, "Month 2"], [3 * D, Q.target, "Target"]];
+  let g = "";
+  marks.forEach(([i, v, name], k) => {
+    g += `<line x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}" stroke="var(--line)" stroke-width="1"/>`;
+    g += `<text x="${k === 0 ? W - R : L}" y="${y(v) - 4}" text-anchor="${k === 0 ? "end" : "start"}">${name} ${esc(money(v))}</text>`;
+    if (k) g += `<line x1="${x(i)}" x2="${x(i)}" y1="${T}" y2="${H - B}" stroke="var(--line)" stroke-width="1" stroke-dasharray="2 4"/><text x="${x(i)}" y="${H - 7}" text-anchor="${k === 3 ? "end" : "middle"}">Day ${i}</text>`;
+  });
+  g += `<text x="${L}" y="${H - 7}">Day 0</text>`;
+  g += `<polyline points="${pts(plan)}" fill="none" stroke="var(--steel)" stroke-width="1.6" stroke-dasharray="5 4"/>`;
+  if (act.length > 1) {
+    const e = act[act.length - 1];
+    g += `<polygon points="${pts(act)} ${x(e[0]).toFixed(1)},${H - B} ${x(0)},${H - B}" fill="var(--accent)" opacity=".14"/>`;
+    g += `<polyline points="${pts(act)}" fill="none" stroke="var(--accent)" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/>`;
+    g += `<circle cx="${x(e[0])}" cy="${y(e[1])}" r="7" fill="var(--accent)" opacity=".25"/><circle cx="${x(e[0])}" cy="${y(e[1])}" r="3.5" fill="var(--accent)"/>`;
+  }
+  return `<svg class="chart num" viewBox="0 0 ${W} ${H}" role="img" aria-label="Recorded balance against the planned balance for quarter ${Q.q + 1}">${g}</svg>
+    <div class="legend"><span><i style="background:var(--accent)"></i>Recorded balance</span><span><i style="background:var(--steel)"></i>Plan (${Q.cfg.target}% a day)</span><span>Log scale, so steady growth is a straight line</span></div>`;
+}
+
+function viewQuarter(M) {
+  if (ui.qq == null) ui.qq = M.active;
+  const Q = M.quarters[ui.qq], S = state.settings, last = Q.lastIdx >= 0 ? Q.days[Q.lastIdx] : null;
+  const fees = Q.months.reduce((a, m) => a + m.fee, 0), allRec = Q.complete;
+  const tag = rec => rec ? "" : "<em>plan</em>";
+  let h = chips("qq", 4, ui.qq, "Quarter");
+  h += `<section class="card"><h2>Quarter ${ui.qq + 1} against target</h2>
+    <div class="stats">
+      <div class="stat"><span class="k">Starting capital</span><span class="v num">${money(Q.start)}</span><span class="n">${Q.startEst ? "estimated from the plan" : ui.qq ? "carried over" : "set in Plan"}</span></div>
+      <div class="stat"><span class="k">Quarterly target</span><span class="v num">${money(Q.target)}</span><span class="n">${Q.cfg.target}% a day for ${Q.N} days</span></div>
+      <div class="stat"><span class="k">Balance</span><span class="v num">${money(Q.balance)}</span><span class="n num">${last ? "day " + (last.i + 1) + " of " + Q.N : "no days recorded"}</span></div>
+      <div class="stat"><span class="k">Against plan</span><span class="v num ${last ? cls(last.gap) : ""}">${last ? signed(last.gap) : "–"}</span><span class="n num">${last ? pct(last.bal / last.plan - 1) + " of plan to date" : ""}</span></div>
+    </div>${chart(Q)}</section>`;
+  h += `<section class="card"><h2>Month goals</h2><div class="scroll-x"><table class="num"><thead><tr><th>Month</th><th>Goal</th><th>Balance</th><th>Gap</th></tr></thead><tbody>
+    ${Q.months.map(m => `<tr><td>Month ${m.m + 1}</td><td>${money(m.plan)}</td><td>${m.rec ? money(m.bal) : "–"}</td><td class="${m.rec ? cls(m.bal - m.plan) : ""}">${m.rec ? signed(m.bal - m.plan) : "–"}</td></tr>`).join("")}
+    </tbody></table></div></section>`;
+  h += `<section class="card"><h2>Withdrawals</h2><div class="rows num">
+    ${Q.months.map(m => `<div><span>Month ${m.m + 1} handling fee (${S.feePct}%)</span><span>${money(m.fee)}${tag(m.rec)}</span></div>`).join("")}
+    <div><span>Quarterly profits (${S.profitPct}%)</span><span>${money(Q.profit)}${tag(allRec)}</span></div>
+    <div class="total"><span>Total quarterly withdrawals</span><span>${money(fees + Q.profit)}${tag(allRec)}</span></div>
+    <div class="total"><span>Capital carried to next quarter</span><span>${money(Q.carry)}${tag(allRec)}</span></div></div>
+    <div class="sub">Figures marked plan use the planned balance until that month's last day is recorded.</div></section>`;
+  h += `<section class="card"><h2>The year</h2><div class="scroll-x"><table class="num"><thead><tr><th>Quarter</th><th>Daily</th><th>R : R</th><th>Start</th><th>Target</th></tr></thead><tbody>
+    ${M.quarters.map(q => `<tr><td>Q${q.q + 1}${q.complete ? " ✓" : q.q === M.active ? " ●" : ""}</td><td>${q.cfg.target}%</td><td>${esc(q.cfg.rr)}</td><td>${money(q.start)}</td><td>${money(q.target)}</td></tr>`).join("")}
+    </tbody></table></div></section>`;
+  return h;
+}
+
+function viewPlan() {
+  const S = state.settings;
+  const f = (id, label, val, attrs = "") => `<div class="field"><label for="${id}">${label}</label><input id="${id}" value="${esc(val)}" ${attrs}></div>`;
+  const numAttr = 'type="number" inputmode="decimal" step="any" min="0"';
+  let h = `<section class="card"><h2>Account</h2><div class="grid2">
+    ${f("s-startCapital", "Starting capital", S.startCapital, numAttr)}${f("s-currency", "Currency symbol", S.currency, 'maxlength="3"')}
+    ${f("s-days", "Trading days a month", S.days, 'type="number" inputmode="numeric" min="5" max="31" step="1"')}<div></div>
+    ${f("s-feePct", "Handling fee %", S.feePct, numAttr)}${f("s-profitPct", "Quarterly profit %", S.profitPct, numAttr)}</div>
+    <div class="sub">At quarter end the handling fee and the profit share are withdrawn. The rest carries into the next quarter.</div></section>`;
+  h += `<section class="card"><h2>Quarterly targets</h2>${S.quarters.map((q, k) => `<div class="qset"><div class="eyebrow">Quarter ${k + 1}</div><div class="grid3">
+    ${f("q" + k + "-target", "Daily target %", q.target, numAttr)}${f("q" + k + "-risk", "Daily risk %", q.risk, numAttr)}${f("q" + k + "-rr", "Risk : reward", q.rr, 'maxlength="9"')}</div></div>`).join("")}</section>`;
+  h += `<section class="card"><h2>Your data</h2>
+    <div class="sub">${storageOk ? "Your journal is saved on this phone only. It is not sent anywhere. Save a backup now and then, so a lost or reset phone does not take your journal with it." : "This browser is blocking storage, so the journal is not being saved. Turn off private browsing, then reopen the app."}</div>
+    <button type="button" class="btn sm" data-act="backup">Save a backup</button>
+    <button type="button" class="btn sm ghost" data-act="restore">Restore from a backup</button>
+    <button type="button" class="btn sm ghost" data-act="csv">Export as spreadsheet (CSV)</button>
+    <button type="button" class="btn sm danger" data-act="askReset">Erase all recorded days</button></section>`;
+  if (!isStandalone()) h += `<section class="card"><h2>Install on your phone</h2><div class="banner install" style="border:0;padding:0;background:none">${installBody()}</div></section>`;
+  return h;
+}
+
+/* ---------- entry sheet ---------- */
+function openLog(q, i) {
+  const M = compute(), d = M.quarters[q].days[i], scrim = document.getElementById("scrim");
+  const has = d.bal != null;
+  scrim.innerHTML = `<form class="sheet" id="logForm" data-q="${q}" data-i="${i}" novalidate>
+    <h2>Quarter ${q + 1} · Month ${d.month + 1} · Day ${d.dim}</h2>
+    <div class="sub num">Goal balance ${money(d.plan)} · target ${signed(d.target)} · max risk ${money(d.risk)}</div>
+    <div class="field bal"><label for="f-bal">Closing balance for the day</label><input id="f-bal" class="num" type="number" inputmode="decimal" step="any" min="0" value="${has ? d.bal : ""}" placeholder="${d.prev.toFixed(2)}" required></div>
+    <div class="note num" id="f-preview"></div>
+    <div class="field"><label for="f-date">Date</label><input id="f-date" type="date" value="${has && d.date ? d.date : today()}"></div>
+    <div class="field"><label for="f-note">Notes: pairs traded, setups, mistakes</label><textarea id="f-note" maxlength="280">${esc(d.note || "")}</textarea></div>
+    <button type="submit" class="btn">Save day</button>
+    <div class="btnrow">${has ? '<button type="button" class="btn sm danger" data-act="del">Delete entry</button>' : ""}<button type="button" class="btn sm ghost" data-act="close">Cancel</button></div></form>`;
+  scrim.hidden = false;
+  const inp = document.getElementById("f-bal"), pv = document.getElementById("f-preview");
+  const upd = () => {
+    const v = parseFloat(inp.value);
+    if (!isFinite(v)) { pv.innerHTML = `Previous balance ${money(d.prev)}. Enter the balance your account closed on.`; return; }
+    const pl = v - d.prev, gap = v - d.plan;
+    pv.innerHTML = `<span class="${cls(pl)}">${signed(pl)}</span> on the day (${pct(pl / d.prev)}) · <span class="${cls(gap)}">${signed(gap)}</span> vs plan · <b>${gap >= 0 ? "Target reached" : "Recovery mode"}</b>`;
+  };
+  inp.addEventListener("input", upd); upd(); inp.focus();
+}
+function closeSheet() { const s = document.getElementById("scrim"); s.hidden = true; s.innerHTML = ""; pendingRestore = null; }
+function askReset() {
+  const scrim = document.getElementById("scrim");
+  scrim.innerHTML = `<div class="sheet"><h2>Erase all recorded days?</h2><div class="sub">Every recorded balance and note is removed. Your plan settings stay. This cannot be undone, so save a backup first if you may want them back.</div>
+    <button type="button" class="btn danger" data-act="reset">Erase recorded days</button><button type="button" class="btn sm ghost" data-act="close">Cancel</button></div>`;
+  scrim.hidden = false;
+}
+function askRestore(next) {
+  const scrim = document.getElementById("scrim"), when = next.updatedAt ? new Date(next.updatedAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : "an unknown date";
+  scrim.innerHTML = `<div class="sheet"><h2>Restore this backup?</h2>
+    <div class="sub">The backup holds <b>${recorded(next)} recorded days</b>, last changed on ${esc(when)}. It replaces the <b>${recorded(state)} recorded days</b> and the plan settings on this phone.</div>
+    <button type="button" class="btn" data-act="doRestore">Restore backup</button><button type="button" class="btn sm ghost" data-act="close">Cancel</button></div>`;
+  scrim.hidden = false; pendingRestore = next;
+}
+
+/* ---------- backup, restore, export ---------- */
+async function giveFile(name, text, type, done) {
+  try {
+    const file = new File([text], name, { type });
+    if (isStandalone() && navigator.canShare && navigator.canShare({ files: [file] })) {
+      try { await navigator.share({ files: [file], title: name }); toast(done); } catch (e) { /* share sheet closed */ }
+      return;
+    }
+    const url = URL.createObjectURL(file), a = document.createElement("a");
+    a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 4000);
+    toast(done);
+  } catch (e) { toast("This browser would not save the file."); }
+}
+function csv() {
+  const M = compute(), rows = [["Quarter", "Month", "Day", "Date", "Daily target", "Daily risk", "Plan balance", "Recorded balance", "Day gain/loss", "Against plan", "Comment", "Notes"]];
+  M.quarters.forEach(Q => Q.days.forEach(d => { if (d.bal != null) rows.push([Q.q + 1, d.month + 1, d.dim, d.date, d.target.toFixed(2), d.risk.toFixed(2), d.plan.toFixed(2), d.bal.toFixed(2), d.pl.toFixed(2), d.gap.toFixed(2), d.hit ? "Target Reached" : "Recovery mode", '"' + (d.note || "").replace(/"/g, '""') + '"']); }));
+  return rows.map(r => r.join(",")).join("\n");
+}
+document.getElementById("restoreFile").addEventListener("change", async ev => {
+  const file = ev.target.files && ev.target.files[0]; ev.target.value = "";
+  if (!file) return;
+  try {
+    const s = JSON.parse(await file.text());
+    if (!s || typeof s.settings !== "object" || typeof s.entries !== "object" || !s.settings || !s.entries) throw new Error("shape");
+    askRestore(normalise(s));
+  } catch (e) { toast("That file is not a BLVCK backup."); }
+});
+
+/* ---------- render and events ---------- */
+function render() {
+  const M = compute(), main = document.getElementById("main");
+  main.innerHTML = ui.tab === "journal" ? viewJournal(M) : ui.tab === "quarter" ? viewQuarter(M) : ui.tab === "plan" ? viewPlan() : viewToday(M);
+  document.querySelectorAll("#tabs button").forEach(b => b.dataset.tab === ui.tab ? b.setAttribute("aria-current", "page") : b.removeAttribute("aria-current"));
+}
+function go(tab) {
+  ui.tab = tab; render(); document.getElementById("main").scrollTop = 0;
+  try { history.replaceState(null, "", "#" + tab); } catch (e) { location.hash = tab; }
+}
+let toastT;
+function toast(msg) { const t = document.getElementById("toast"); t.textContent = msg; t.hidden = false; clearTimeout(toastT); toastT = setTimeout(() => t.hidden = true, 3200); }
+function touch() { state.example = false; persist(); }
+
+document.getElementById("app").addEventListener("click", async ev => {
+  const t = ev.target.closest("[data-tab],[data-act]"); if (!t) { if (ev.target.id === "scrim") closeSheet(); return; }
+  if (t.dataset.tab) return go(t.dataset.tab);
+  const a = t.dataset.act, k = +t.dataset.k;
+  if (a === "log") openLog(+t.dataset.q, +t.dataset.i);
+  else if (a === "close") closeSheet();
+  else if (a === "keep") { touch(); render(); toast("Kept. This is now your journal."); }
+  else if (a === "fresh" || a === "reset") { state.entries = {}; touch(); ui.jq = ui.jm = ui.qq = null; closeSheet(); render(); toast("Recorded days cleared."); }
+  else if (a === "askReset") askReset();
+  else if (a === "del") { const f = document.getElementById("logForm"); delete state.entries[f.dataset.q + "-" + f.dataset.i]; touch(); closeSheet(); render(); toast("Entry deleted."); }
+  else if (a === "jq") { ui.jq = k; render(); }
+  else if (a === "jm") { ui.jm = k; render(); }
+  else if (a === "qq") { ui.qq = k; render(); }
+  else if (a === "backup") giveFile("blvck-journal-backup-" + today() + ".json", JSON.stringify(state, null, 1), "application/json", "Backup saved. Keep the file somewhere safe.");
+  else if (a === "restore") document.getElementById("restoreFile").click();
+  else if (a === "doRestore") { if (pendingRestore) { state = pendingRestore; state.example = false; persist(); ui.jq = ui.jm = ui.qq = null; } closeSheet(); render(); toast("Backup restored."); }
+  else if (a === "csv") giveFile("blvck-journal-" + today() + ".csv", csv(), "text/csv", "Spreadsheet file saved.");
+  else if (a === "hideInstall") { try { localStorage.setItem(HIDE_INSTALL, "1"); } catch (e) {} render(); toast("You can install later from the Plan tab."); }
+  else if (a === "install") {
+    if (!installEvt) return render();
+    const e = installEvt; installEvt = null;
+    try { e.prompt(); await e.userChoice; } catch (err) {}
+    render();
+  }
+});
+document.getElementById("app").addEventListener("submit", ev => {
+  ev.preventDefault();
+  const f = ev.target; if (f.id !== "logForm") return;
+  const v = parseFloat(document.getElementById("f-bal").value);
+  if (!isFinite(v) || v < 0) { toast("Enter the closing balance as a number, for example 488."); document.getElementById("f-bal").focus(); return; }
+  state.entries[f.dataset.q + "-" + f.dataset.i] = { bal: v, date: document.getElementById("f-date").value || today(), note: document.getElementById("f-note").value.trim() };
+  touch(); closeSheet(); render();
+  const d = compute().quarters[+f.dataset.q].days[+f.dataset.i];
+  toast(!storageOk ? "Not saved: this browser is blocking storage." : d.hit ? "Saved. Target reached." : "Saved. Recovery mode: " + money(Math.abs(d.gap)) + " behind plan.");
+});
+document.getElementById("main").addEventListener("change", ev => {
+  const el = ev.target, id = el.id || ""; const S = state.settings;
+  const n = parseFloat(el.value);
+  if (id === "s-currency") S.currency = el.value.trim();
+  else if (id === "s-days") { if (!(n >= 5 && n <= 31)) return toast("Trading days a month must be between 5 and 31."), render(); S.days = Math.round(n); ui.jq = ui.jm = null; }
+  else if (id.startsWith("s-")) { if (!(n >= 0)) return toast("Enter a number of zero or more."), render(); if (id === "s-startCapital" && n === 0) return toast("Starting capital must be above zero."), render(); S[id.slice(2)] = n; }
+  else if (/^q\d-/.test(id)) { const q = S.quarters[+id[1]], key = id.slice(3); if (key === "rr") q.rr = el.value.trim(); else { if (!(n >= 0)) return toast("Enter a number of zero or more."), render(); q[key] = n; } }
+  else return;
+  persist(); render();
+  toast(S.feePct + S.profitPct > 100 ? "Fee and profit share add up to more than 100%." : "Plan updated.");
+});
+window.addEventListener("hashchange", () => { const h = location.hash.slice(1); if (["today", "journal", "quarter", "plan"].includes(h) && h !== ui.tab) { ui.tab = h; render(); } });
+
+loadLocal();
+{ const h = location.hash.slice(1); if (["today", "journal", "quarter", "plan"].includes(h)) ui.tab = h; }
+render(); showSync();
+// Ask the phone to keep the journal even when storage runs low.
+try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {}); } catch (e) {}
+if ("serviceWorker" in navigator) window.addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));
+</script>
+</body>
+</html>
